@@ -332,8 +332,8 @@ _sk-github-config(){
 }
 
 sk-github-runner-ips(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
-  sk-asdf-install jq -p jq -v 1.6
+  sk-asdf-install gh -p github-cli -v 2.13.0 --silent
+  sk-asdf-install jq -p jq -v 1.6 --silent
 
   gh api -H "Accept: application/vnd.github+json" /meta | jq -r .actions | grep -E '[0-9]\/' | sed 's/["|,| ]//g' | sk-ip-merge
 }

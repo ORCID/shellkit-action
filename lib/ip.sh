@@ -99,7 +99,7 @@ sk-ip-mask-to-cidr(){
 
 sk-ip-merge(){
   sk_help "Merge ipv4 ip address' on newlines from stdin into the smallest set of ranges. output on newlines to stdout" && return
-  sk-asdf-install cidr-merger -p cidr-merger -v 1.1.3 --plugin_git_url https://github.com/ORCID/asdf-cidr-merger.git
+  sk-asdf-install cidr-merger -p cidr-merger -v 1.1.3 --plugin_git_url https://github.com/ORCID/asdf-cidr-merger.git --silent
   cat - | cidr-merger
 }
 
