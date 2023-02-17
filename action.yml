@@ -1,0 +1,26 @@
+name: 'shellkit_copy'
+description: 'copy shellkit bash tools to a standard /opt/shellkit location'
+
+runs:
+  using: "composite"
+  steps:
+    - name: adjust the path to include the actions path so scripts in the action can be run
+      run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+      shell: bash
+
+    - name: asdf cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.asdf
+        key: ${{ runner.os }}|${{ hashFiles('**/.tool-versions') }}
+        restore-keys: |
+          ${{ runner.os }}-asdf-
+
+    - name: copy shellkit into a standard path on the github runners
+      run: |
+        mkdir -p /opt/shellkit
+        ls -la ${{ github.action_path }}
+        cp -r ${{ github.action_path }}/* /opt/shellkit/
+        ls -la /opt/shellkit/
+      shell: bash
+
