@@ -152,8 +152,8 @@ sk-asdf-install-tool-versions(){
   if [[ -r .tool-versions ]];then
 
     while read -r line;do
-      program=$(echo $line | awk -F "=" '{print $1}')
-      version=$(echo $line | awk -F "=" '{print $2}')
+      program=$(echo $line | awk '{print $1}')
+      version=$(echo $line | awk '{print $2}')
       echo $program
       echo $version
 
