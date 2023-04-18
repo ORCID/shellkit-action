@@ -35,7 +35,7 @@ sk-logger-stdout(){
     mkdir $log_dir
   fi
 
-  sed "s/^/$(date) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}
+  sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}
 }
 
 # Special function to not wait on input and log either stdout or stderr
@@ -56,7 +56,7 @@ sk-logger-noout(){
     mkdir $log_dir
   fi
 
-  sed "s/^/$(date) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}  1>/dev/null
+  sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}  1>/dev/null
 }
 
 
@@ -76,7 +76,7 @@ sk-logger-stderr(){
     mkdir $log_dir
   fi
 
-  sed "s/^/$(date) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} >&2
+  sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} >&2
 }
 
 sk-logger-stderr-keyevent(){
@@ -94,7 +94,7 @@ sk-logger-stderr-keyevent(){
     mkdir $log_dir
   fi
 
-  sed "s/^/$(date) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} | slacktee --channel $KEYEVENT_CHANNEL --username $(whoami)
+  sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} | slacktee --channel $KEYEVENT_CHANNEL --username $(whoami)
 }
 
 #
@@ -105,7 +105,7 @@ sk-logger-stdin(){
   _sk_logger_common
   input="$(cat -)"
 
-  echo "$(date) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
 }
 
 sk-logger-stdin-stdout(){
@@ -113,14 +113,14 @@ sk-logger-stdin-stdout(){
   input="$(cat -)"
 
   echo "$input"
-  echo "$(date) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
 }
 
 sk-logger-stdin-keyevent(){
   _sk_logger_common
   input="$(cat -)"
 
-  echo "$(date) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
   keyevent "$input"
 }
 
@@ -129,7 +129,7 @@ sk-logger-stdin-stdout-keyevent(){
   input="$(cat -)"
 
   echo "$input"
-  echo "$(date) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $input" >> ${log_dir}/${log_name}
   keyevent "$input"
 }
 
@@ -139,32 +139,32 @@ sk-logger-stdin-stdout-keyevent(){
 
 sk-logger-args(){
   _sk_logger_common
-  echo "$(date) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
 }
 
 sk-logger-args-stdout(){
   _sk_logger_common
   echo "$@"
-  echo "$(date) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
 }
 
 sk-logger-args-stderr(){
   _sk_logger_common
   >&2 echo "$@"
-  echo "$(date) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
 }
 
 sk-logger-args-stdout-keyevent(){
   _sk_logger_common
   echo "$@"
-  echo "$(date) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
   keyevent "$@"
 }
 
 sk-logger-args-stderr-keyevent(){
   _sk_logger_common
   >&2 echo "$@"
-  echo "$(date) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
+  echo "$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: $@" >> ${log_dir}/${log_name}
   keyevent "$@"
 }
 
