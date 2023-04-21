@@ -152,14 +152,21 @@ sk-asdf-install-tool-versions(){
   if [[ -r .tool-versions ]];then
 
     while read -r line;do
+      plugin='unset'
       program=$(echo $line | awk '{print $1}')
       version=$(echo $line | awk '{print $2}')
+      plugin=$(echo $line | awk '{print $3}')
       echo $program
       echo $version
+      echo $plugin
 
-      echo "sk-asdf-install $program -p $program -v $version"
-      sk-asdf-install "$program" -p "$program" -v "$version"
-
+      if [[ $plugin = 'unset' ]];then
+        echo "sk-asdf-install $program -p $program -v $version"
+        sk-asdf-install "$program" -p "$program" -v "$version"
+      else
+        echo "sk-asdf-install $program -p $program -v $version -ug $plugin"
+        sk-asdf-install "$program" -p "$program" -v "$version" -ug "$plugin"
+      fi
       # skip comments and blank lines
     done < <(cat .tool-versions | grep -v '#' | grep -ve '^$' )
 
