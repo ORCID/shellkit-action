@@ -4,9 +4,9 @@ version_command() {
 
   if [ "$#" -lt "3" ]; then
     if [ "$cmd" = "global" ]; then
-      printf "Usage: asdf global <name> <version>\\n"
+      printf "Usage: asdf global <name> <version>\n"
     else
-      printf "Usage: asdf local <name> <version>\\n"
+      printf "Usage: asdf local <name> <version>\n"
     fi
     exit 1
   fi
@@ -17,14 +17,14 @@ version_command() {
   local file_name
   local file
 
-  file_name="$(version_file_name)"
+  file_name="$(asdf_tool_versions_filename)"
 
   if [ "$cmd" = "global" ]; then
     file="$HOME/$file_name"
   elif [ "$cmd" = "local-tree" ]; then
     file=$(find_tool_versions)
   else # cmd = local
-    file="$(pwd)/$file_name"
+    file="$PWD/$file_name"
   fi
 
   if [ -L "$file" ]; then
@@ -60,11 +60,22 @@ version_command() {
     resolved_versions+=("$version")
   done
 
-  if [ -f "$file" ] && grep "^$plugin_name " "$file" >/dev/null; then
-    sed -i.bak -e "s|^$plugin_name .*$|$plugin_name ${resolved_versions[*]}|" "$file"
-    rm -f "$file".bak
+  if [ -f "$file" ] && grep -q "^$plugin_name " "$file"; then
+    local temp_dir
+    temp_dir=${TMPDIR:-/tmp}
+
+    local temp_tool_versions_file
+    temp_tool_versions_file=$(mktemp "$temp_dir/asdf-tool-versions-file.XXXXXX")
+
+    cp -f "$file" "$temp_tool_versions_file"
+    sed -e "s|^$plugin_name .*$|$plugin_name ${resolved_versions[*]}|" "$temp_tool_versions_file" >"$file"
+    rm -f "$temp_tool_versions_file"
   else
-    printf "%s %s\\n" "$plugin_name" "${resolved_versions[*]}" >>"$file"
+    # Add a trailing newline at the end of the file if missing
+    [[ -f "$file" && -n "$(tail -c1 "$file")" ]] && printf '\n' >>"$file"
+
+    # Add a new version line to the end of the file
+    printf "%s %s\n" "$plugin_name" "${resolved_versions[*]}" >>"$file"
   fi
 }
 
@@ -88,9 +99,9 @@ list_all_command() {
 
   if [[ $return_code -ne 0 ]]; then
     # Printing all output to allow plugin to handle error formatting
-    printf "Plugin %s's list-all callback script failed with output:\\n" "${plugin_name}" >&2
-    printf "%s\\n" "$(cat "$std_err_file")" >&2
-    printf "%s\\n" "$(cat "$std_out_file")" >&2
+    printf "Plugin %s's list-all callback script failed with output:\n" "${plugin_name}" >&2
+    printf "%s\n" "$(cat "$std_err_file")" >&2
+    printf "%s\n" "$(cat "$std_out_file")" >&2
     rm "$std_out_file" "$std_err_file"
     exit 1
   fi
@@ -111,7 +122,7 @@ list_all_command() {
   IFS=' ' read -r -a versions_list <<<"$output"
 
   for version in "${versions_list[@]}"; do
-    printf "%s\\n" "${version}"
+    printf "%s\n" "${version}"
   done
 
   # Remove temp files if they still exist
@@ -125,7 +136,7 @@ latest_command() {
   local query=$2
   local plugin_path
 
-  if [ "$plugin_name" == "--all" ]; then
+  if [ "$plugin_name" = "--all" ]; then
     latest_all
   fi
 
@@ -140,13 +151,13 @@ latest_command() {
     versions=$("${plugin_path}"/bin/latest-stable "$query")
     if [ -z "${versions}" ]; then
       # this branch requires this print to mimic the error from the list-all branch
-      printf "No compatible versions available (%s %s)\\n" "$plugin_name" "$query" >&2
+      printf "No compatible versions available (%s %s)\n" "$plugin_name" "$query" >&2
       exit 1
     fi
   else
     # pattern from xxenv-latest (https://github.com/momo-lab/xxenv-latest)
     versions=$(list_all_command "$plugin_name" "$query" |
-      grep -ivE "(^Available versions:|-src|-dev|-latest|-stm|[-\\.]rc|-alpha|-beta|[-\\.]pre|-next|(a|b|c)[0-9]+|snapshot|master)" |
+      grep -ivE "(^Available versions:|-src|-dev|-latest|-stm|[-\\.]rc|-milestone|-alpha|-beta|[-\\.]pre|-next|(a|b|c)[0-9]+|snapshot|master)" |
       sed 's/^[[:space:]]\+//' |
       tail -1)
     if [ -z "${versions}" ]; then
@@ -154,7 +165,7 @@ latest_command() {
     fi
   fi
 
-  printf "%s\\n" "$versions"
+  printf "%s\n" "$versions"
 }
 
 latest_all() {
@@ -194,10 +205,10 @@ latest_all() {
       if [ -n "$installed_versions" ] && printf '%s\n' "$installed_versions" | grep -q "^$version\$"; then
         installed_status="installed"
       fi
-      printf "%s\\t%s\\t%s\\n" "$plugin_name" "$version" "$installed_status"
+      printf "%s\t%s\t%s\n" "$plugin_name" "$version" "$installed_status"
     done
   else
-    printf "%s\\n" 'No plugins installed'
+    printf "%s\n" 'No plugins installed'
   fi
   exit 0
 }

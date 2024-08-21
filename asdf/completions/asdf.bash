@@ -1,3 +1,12 @@
+_asdf_list_shims() (
+  # this function runs in a subshell so shopt is scoped
+  shopt -s nullglob # globs that don't match should disappear
+  shopt -u failglob # globs that don't match shouldn't fail
+  for shim in "${ASDF_DATA_DIR:-$HOME/.asdf}"/shims/*; do
+    basename "$shim"
+  done
+)
+
 _asdf() {
   local cur
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -19,7 +28,7 @@ _asdf() {
     # shellcheck disable=SC2207
     COMPREPLY=($(compgen -W "$plugins --all" -- "$cur"))
     ;;
-  plugin-remove | current | list | list-all)
+  plugin-remove | current)
     # shellcheck disable=SC2207
     COMPREPLY=($(compgen -W "$plugins" -- "$cur"))
     ;;
@@ -29,7 +38,7 @@ _asdf() {
     # shellcheck disable=SC2207
     COMPREPLY=($(compgen -W "$available_plugins" -- "$cur"))
     ;;
-  install)
+  install | list | list-all | help)
     if [[ "$plugins" == *"$prev"* ]]; then
       local versions
       versions=$(asdf list-all "$prev" 2>/dev/null)
@@ -67,8 +76,17 @@ _asdf() {
       COMPREPLY=($(compgen -W "$plugins" -- "$cur"))
     fi
     ;;
+  latest)
+    # shellcheck disable=SC2207
+    COMPREPLY=($(compgen -W "--all" -- "$cur"))
+    ;;
+  which | shim-versions)
+    # shellcheck disable=SC2207
+    COMPREPLY=($(compgen -W "$(_asdf_list_shims)" -- "$cur"))
+    ;;
+  plugin-list | plugin-list-all | info) ;;
   *)
-    local cmds='current global help install list list-all local plugin-add plugin-list plugin-list-all plugin-remove plugin-update reshim shell uninstall update where which info'
+    local cmds='current global help install latest list list-all local plugin-add plugin-list plugin-list-all plugin-remove plugin-update reshim shim-versions shell uninstall update where which info'
     # shellcheck disable=SC2207
     COMPREPLY=($(compgen -W "$cmds" -- "$cur"))
     ;;

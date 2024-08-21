@@ -14,7 +14,20 @@ plugin_test_command() {
   local plugin_url="$2"
   shift 2
 
-  local plugin_gitref="master"
+  local exit_code
+  local TEST_DIR
+
+  fail_test() {
+    printf "FAILED: %s\n" "$1"
+    rm -rf "$TEST_DIR"
+    exit 1
+  }
+
+  if [ -z "$plugin_name" ] || [ -z "$plugin_url" ]; then
+    fail_test "please provide a plugin name and url"
+  fi
+
+  local plugin_gitref
   local tool_version
   local interpret_args_literally
   local skip_next_arg
@@ -45,21 +58,13 @@ plugin_test_command() {
     fi
   done
 
-  if [ "$#" -eq 1 ]; then
-    set -- "${SHELL:-sh}" -c "$1"
+  if [ -z "$plugin_gitref" ]; then
+    plugin_remote_default_branch=$(git ls-remote --symref "$plugin_url" HEAD | awk '{ sub(/refs\/heads\//, ""); print $2; exit }')
+    plugin_gitref=${3:-${plugin_remote_default_branch}}
   fi
 
-  local exit_code
-  local TEST_DIR
-
-  fail_test() {
-    printf "FAILED: %s\\n" "$1"
-    rm -rf "$TEST_DIR"
-    exit 1
-  }
-
-  if [ -z "$plugin_name" ] || [ -z "$plugin_url" ]; then
-    fail_test "please provide a plugin name and url"
+  if [ "$#" -eq 1 ]; then
+    set -- "${SHELL:-sh}" -c "$1"
   fi
 
   TEST_DIR=$(mktemp -dt asdf.XXXX)
@@ -79,7 +84,7 @@ plugin_test_command() {
     fi
 
     # shellcheck disable=SC2119
-    if ! (plugin_list_command | grep "^$plugin_name$" >/dev/null); then
+    if ! (plugin_list_command | grep -q "^$plugin_name$"); then
       fail_test "$plugin_name was not properly installed"
     fi
 
@@ -90,22 +95,22 @@ plugin_test_command() {
     local plugin_path
     plugin_path=$(get_plugin_path "$plugin_name")
     local list_all="$plugin_path/bin/list-all"
-    if grep api.github.com "$list_all" >/dev/null; then
-      if ! grep Authorization "$list_all" >/dev/null; then
-        printf "\\nLooks like %s/bin/list-all relies on GitHub releases\\n" "$plugin_name"
-        printf "but it does not properly sets an Authorization header to prevent\\n"
-        printf "GitHub API rate limiting.\\n\\n"
-        printf "See https://github.com/asdf-vm/asdf/blob/master/docs/creating-plugins.md#github-api-rate-limiting\\n"
+    if grep -q api.github.com "$list_all"; then
+      if ! grep -q Authorization "$list_all"; then
+        printf "\nLooks like %s/bin/list-all relies on GitHub releases\n" "$plugin_name"
+        printf "but it does not properly sets an Authorization header to prevent\n"
+        printf "GitHub API rate limiting.\n\n"
+        printf "See https://github.com/asdf-vm/asdf/blob/master/docs/creating-plugins.md#github-api-rate-limiting\n"
 
         fail_test "$plugin_name/bin/list-all does not set GitHub Authorization token"
       fi
 
       # test for most common token names we have on plugins. If both are empty show this warning
       if [ -z "$OAUTH_TOKEN" ] && [ -z "$GITHUB_API_TOKEN" ]; then
-        printf "%s/bin/list-all is using GitHub API, just be sure you provide an API Authorization token\\n" "$plugin_name"
-        printf "via your CI env GITHUB_API_TOKEN. This is the current rate_limit:\\n\\n"
+        printf "%s/bin/list-all is using GitHub API, just be sure you provide an API Authorization token\n" "$plugin_name"
+        printf "via your CI env GITHUB_API_TOKEN. This is the current rate_limit:\n\n"
         curl -s https://api.github.com/rate_limit
-        printf "\\n"
+        printf "\n"
       fi
     fi
 
@@ -150,7 +155,7 @@ plugin_test_command() {
       "$@"
       exit_code=$?
       if [ $exit_code != 0 ]; then
-        fail_test "$* failed with exit code $?"
+        fail_test "$* failed with exit code $exit_code"
       fi
     fi
 
