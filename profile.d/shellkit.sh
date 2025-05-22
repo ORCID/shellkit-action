@@ -127,7 +127,7 @@ SHELLKIT_LIB_DIR="${SHELLKIT_DIR}lib"
 [[ -f /etc/shellkit/conf.sh ]] && . /etc/shellkit/conf.sh
 
 # some projects use a local checkout of shellkit that we don't want overriding unless dev mode is active
-if [[ "$SHELLKIT_DIR" =~ "shellkit_local" ]] && [[ "$SHELLKIT_DEV_MODE" -eq 0 ]];then
+if [[ "$SHELLKIT_DIR" =~ "shellkit_local" ]] && [[ "$SHELLKIT_DEV_MODE" -eq 0 ]] && [ -t 1 ];then
   echo "INFO: using $SHELLKIT_DIR"
 else
   # if we have code in our home directory prefer this
@@ -160,7 +160,7 @@ if [[ ! -d $HOME/node_modules/.bin ]];then
 fi
 
 PATH=`sk-env-path-postpend "$PATH" \
-  $(sk-file-readlink $SHELLKIT_DIR/bin) \
+  $(sk-readlink-f $SHELLKIT_DIR/bin) \
   $HOME/node_modules/.bin \
   /sbin \
   /usr/sbin \
@@ -169,6 +169,8 @@ PATH=`sk-env-path-postpend "$PATH" \
   /opt/local/sbin \
   /usr/local/bin \
   /usr/local/sbin \
+  /opt/homebrew/bin \
+  /opt/homebrew/sbin \
   /usr/local/lib/nagios/plugins \
   $HOME/bin \
   $HOME/sbin \

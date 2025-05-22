@@ -9,6 +9,8 @@ alias gs='git status -s'
 alias ga='git add '
 alias gaa='git add -A'
 
+alias gbs='sk-git-branch-create-switch'
+
 alias gd='git diff'
 alias gco='git checkout '
 alias gk='gitk --all&'
@@ -39,12 +41,15 @@ alias gcl=sk-git-branch-last
 alias got='git '
 alias get='git '
 alias gl='git pull'
+alias gu='git pull'
 
 alias sk-git-delete-local-branch="git branch -D "
 alias sk-git-delete-remote-branch="git push origin --delete "
 alias sk-git-create-local-branch="git checkout -b "
 alias gci="sk-git-commit-id"
 alias gc="sk-git-commit"
+alias gcn="sk-git-commit-no-verify"
+
 
 # FIXME: what use case?
 alias gau="git ls-files -o --exclude-standard | xargs -i git add '{}'"
@@ -55,6 +60,41 @@ alias pci=sk-git-pre-commit-install
 
 alias grl=sk-git-rebase-last
 
+alias gbpt=sk-git-branch-pr-merge-test
+
+sk-git-branch-delete-local-remote(){
+  local branch=${1:-wibble}
+  git checkout main
+  git push --delete origin $branch
+  git branch -D $branch
+}
+
+sk-git-branch-pr-merge-test(){
+  gcd
+  branch_id="gha-dummy-$(( ( RANDOM % 100 )  + 1 ))"
+  branch_name="fix/$branch_id"
+  sk-git-branch-create-switch $branch_name
+  touch trigger_github_action
+  echo "$branch_id" >> trigger_github_action
+  git add trigger_github_action
+  git commit -m "$branch_id"
+  git push
+  pr
+  gh pr merge -m
+  gcd
+}
+
+sk-git-log-latest-merge(){
+  git log --merges -n 1
+}
+
+sk-git-branch-create-switch(){
+  local branch=${1:-feat/blar}
+  git pull
+  git branch $branch
+  git switch $branch
+}
+
 sk-git-restore(){
   git restore
 }
@@ -64,6 +104,27 @@ sk-git-restore-deleted(){
     git restore
   done
 }
+
+alias sk-git-branch-list-ui=sk-git-switch-recent
+
+sk-git-switch-recent(){
+
+  TMP_FILE=/tmp/selected-git-branch
+
+  eval `resize`
+  sk-pack-install dialog -p dialog
+  dialog --title "Recent Git Branches" --menu "Choose a branch" $LINES $COLUMNS $(( $LINES - 8 )) $(git for-each-ref --sort=-committerdate refs/heads/ --format='%(refname:short) %(committerdate:short)') 2> $TMP_FILE
+
+  if [[ "$?" -eq 0 ]];then
+    git checkout $(< $TMP_FILE)
+  fi
+
+  rm -f $TMP_FILE
+
+  clear
+}
+
+alias gsr=sk-git-switch-recent
 
 sk-git-rebase-last(){
   git rebase -i HEAD~1
@@ -233,9 +294,9 @@ sk-git-branch-last(){
 }
 
 sk-git-branch-last-last(){
-  git switch @{-2}
+  last_last_branch=$(git for-each-ref --count=30 --sort=-committerdate refs/heads/ --format='%(refname:short)' | grep -v main | head -n3 | tail -n1)
+  git switch $last_last_branch
 }
-
 
 _sk-git-url-to-repo(){
   local git_url=${1:-git@github.com:ORCID/wibble.git}
@@ -263,6 +324,15 @@ sk-gitflow-branch(){
 
 sk-git-tag-latest(){
   git describe --tags --abbrev=0
+}
+
+sk-git-tag-latest-remote(){
+  local remote_repo=${1:-https://github.com/asdf-vm/asdf}
+  git ls-remote --tags $remote_repo | \
+  grep -o 'refs/tags/[^^{}]*$' | \
+  sed 's#refs/tags/##' | \
+  sort -V | \
+  tail -n 1
 }
 
 ### SAFER LAZY GIT
@@ -294,6 +364,12 @@ sk-git-checkout-dev(){
   git fetch --all
   git checkout $gf_base_branch
   git pull
+}
+
+sk-git-private-key-session(){
+  sk_help "Usage: $FUNCNAME <private_key>. Change the GIT_SSH_COMMAND for a bash session to use a private key different to your default. NOTE key must be added to the ssh keychain too" "$@" && return
+  local private_key=$1
+  export GIT_SSH_COMMAND="ssh -i $private_key -o IdentitiesOnly=yes -F /dev/null"
 }
 
 sk-git-private-key(){
@@ -361,6 +437,11 @@ sk-git-create-remote-branch(){
 sk-git-create-local-remote-branch(){
   sk-git-create-remote-branch $1
   git checkout $1
+}
+
+sk-git-commit-no-verify(){
+  [ -z "$@" ] && echo "Provide a commit description" && return
+  git commit --no-verify -m "$@"
 }
 
 sk-git-commit(){
@@ -648,7 +729,7 @@ sk-git-clone(){
 
   _sk-git-keygen -r $repo -g $git_dir
 
-  if [[ ! -d "${git_dir}/.git" ]];then
+  if [[ ! -d ${git_dir}/.git ]];then
     echo "cloning repo $repo"
     git clone "$repo" "$git_dir"
     # 1>/dev/null 2>&1
@@ -773,7 +854,7 @@ sk-git-current-branch-tag(){
 
 sk-git-set-git-dir(){
   local git_repo=${1:-wibble}
-  export GIT_DIR=$(sk-file-readlink $git_repo)
+  export GIT_DIR=$(sk-readlink-f $git_repo)
 }
 
 sk-git-default-branch(){
@@ -824,13 +905,12 @@ sk-git-dev-branch(){
   local git_branches=$(git -C $git_dir for-each-ref --format='%(refname:short)' refs/heads/)
 
    case $git_branches in
+    *main*) echo 'main' ;;
     *development*) echo 'development' ;;
     *develop*) echo 'develop';;
-    *main*) echo 'main' ;;
     *master*) echo 'master' ;;
    esac
 }
-
 
 
 sk-git-branch-tag-exists(){
@@ -897,6 +977,12 @@ sk-git-fetch-branch-tag(){
 
   _sk-git-keygen -g $git_dir
   git -C $git_dir fetch --all --tags -f
+}
+
+sk-git-tag-delete(){
+  local tag=${1:-wibble}
+  git push --delete origin $tag
+  git tag -d $tag
 }
 
 sk-git-tag(){

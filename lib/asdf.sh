@@ -79,7 +79,7 @@ sk-asdf-python-venv-activate(){
 
 _sk-asdf-python-test(){
   # readlink is need if were in a venv to link to the source python
-  if python_current=$(grep -q asdf <<< sk-file-readlink $(which python) ) ;then
+  if python_current=$(grep -q asdf <<< sk-readlink-f $(which python) ) ;then
     return 0
   else
     return 1
@@ -152,23 +152,29 @@ sk-asdf-install-tool-versions(){
   if [[ -r .tool-versions ]];then
 
     while read -r line;do
-      plugin='unset'
+
+      # start to filter commend or RUN xxx lines
+      if $(echo "$line" | grep -q '#');then
+        if echo "$line" | grep -q 'RUN';then
+          run_line=$(echo "$line" | awk -F'# RUN ' '{print $2}')
+          echo "running $run_line"
+          eval $run_line
+          continue
+        else
+          # skip comments
+          continue
+        fi
+      fi
+
       program=$(echo $line | awk '{print $1}')
       version=$(echo $line | awk '{print $2}')
-      plugin=$(echo $line | awk '{print $3}')
       echo $program
       echo $version
-      echo $plugin
 
-      if [[ $plugin = 'unset' ]];then
-        echo "sk-asdf-install $program -p $program -v $version"
-        sk-asdf-install "$program" -p "$program" -v "$version"
-      else
-        echo "sk-asdf-install $program -p $program -v $version -ug $plugin"
-        sk-asdf-install "$program" -p "$program" -v "$version" -ug "$plugin"
-      fi
-      # skip comments and blank lines
-    done < <(cat .tool-versions | grep -v '#' | grep -ve '^$' )
+      echo "sk-asdf-install $program -p $program -v $version"
+      sk-asdf-install "$program" -p "$program" -v "$version"
+      # skip blank lines
+    done < <(cat .tool-versions | grep -ve '^$' )
 
   else
     echo "Missing .tool-versions file"
@@ -182,10 +188,14 @@ sk-asdf-uninstall-tool-versions(){
   if [[ -r .tool-versions ]];then
 
     while read -r line;do
-      program=$(echo $line | awk -F "=" '{print $1}')
-      version=$(echo $line | awk -F "=" '{print $2}')
+
+      plugin='unset'
+      program=$(echo $line | awk '{print $1}')
+      version=$(echo $line | awk '{print $2}')
+      plugin=$(echo $line | awk '{print $3}')
       echo $program
       echo $version
+      echo $plugin
 
       echo "asdf uninstall $program $version"
       asdf uninstall "$program" "$version"
