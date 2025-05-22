@@ -3,6 +3,128 @@
 # General systems functions
 #
 #-------------------------------------------------------------------------------
+alias pc="pre-commit"
+alias pci="pre-commit install"
+alias pca="sk-pre-commit-all"
+
+sk-group-user-uid-highest(){
+  group_name="${1:-wibble}"
+
+  # List all users in the group
+  group_users=$(getent group "$group_name" | awk -F: '{print $4}' | tr ',' '\n')
+
+  # Initialize the highest UID variable
+  highest_uid=-1
+
+  # Loop through each user and find their UID
+  for user in $group_users; do
+    user_uid=$(id -u "$user")
+    if [ "$user_uid" -gt "$highest_uid" ]; then
+      highest_uid=$user_uid
+    fi
+  done
+
+  # Output the highest UID
+  echo "The highest UID in the group '$group_name' is: $highest_uid"
+}
+
+sk-pushover(){
+  sk-config-read -c .pushover.conf
+curl -s \
+  --form-string "token=${APP_TOKEN}" \
+  --form-string "user=${USER_KEY}" \
+  --form-string "message=$@" \
+  https://api.pushover.net/1/messages.json
+}
+
+sk-hostname-noid(){
+  hostname | awk -F '-' '{print $1"-"$2"-"$3"-"$4}'
+}
+
+sk-motd(){
+  sudo bash -c 'run-parts /etc/update-motd.d/ > /var/run/motd.dynamic'
+  cat /var/run/motd.dynamic
+}
+
+sk-cron-is(){
+  if [ -t 1 ] ; then
+    false
+  else
+    true
+  fi
+}
+
+sk-interactive(){
+  if [ -t 1 ] ; then
+    true
+  else
+    false
+  fi
+}
+
+sk-jinjafier() {
+  sk_help_noarg "$FUNCNAME: <properties_file>. Convert a properties files into a jina2 template" "$@" && return
+  local propfile=${1:-example.properties}
+
+  sk-asdf-install jinjafier -p jinjafier -v latest --plugin_git_url https://github.com/ORCID/asdf-jinjafier.git --silent
+  jinjafier $propfile
+}
+
+sk-dos2unix(){
+  sk-pack-install dos2unix -p dos2unix
+  dos2unix $@
+}
+
+sk-restic-restore-all-latest(){
+  for restore_script in `sudo ls -1 /root/restic/ | grep restore | grep -v auto`;do
+    echo "/root/restic/$restore_script"
+    sudo /root/restic/$restore_script
+  done
+}
+
+sk-restic-path-list(){
+  sk_help "Usage: Extract path name from each restore file" "$@" && return
+  sudo ls -1 /root/restic/ | grep restore | grep -v auto | perl -pe 's/restore-//g'
+}
+
+sk-restic-path-list-first(){
+  sk_help "Usage: Extract path name from each restore file and list the first one only" "$@" && return
+  sudo ls -1 /root/restic/ | grep restore | grep -v auto | perl -pe 's/restore-//g' | head -1
+}
+
+sk-restic-restore-snapshot-id(){
+  sk_help_noarg "Usage: <snapshot_id> <path>(first) Restore a specific snapshot id" "$@" && return
+  local restic_backup_path=${2:-$(sk-restic-path-list-first)}
+  local access_file=$(sudo ls -1 /root/restic/ | grep access | grep $restic_backup_path)
+  echo /root/restic/$access_file
+  source <(sudo cat /root/restic/$access_file)
+  restic restore "$1"
+}
+
+sk-restic-snapshot-list(){
+  sk_help "Usage: <snapshot_id> <path>(first) Restore a specific snapshot id" "$@" && return
+  local restic_backup_path=${2:-$(sk-restic-path-list-first)}
+  local access_file=$(sudo ls -1 /root/restic/ | grep access | grep $restic_backup_path)
+  source <(sudo cat /root/restic/$access_file)
+  echo /root/restic/$access_file
+  restic snapshots
+}
+
+sk-restic-unlock(){
+  access_file=$(sudo ls -1 /root/restic/ | grep access | tail -1)
+  source <(sudo cat /root/restic/$access_file)
+  echo "restic unlock"
+  restic unlock
+}
+
+sk-pre-commit-dir(){
+  sk_help_noarg "$FUNCNAME: <dir>. Run pre-commit on all files in a dir" "$@" && return
+  git ls-files -- $1 | xargs pre-commit run --files
+}
+
+sk-pre-commit-all(){
+  pre-commit run --all-files
+}
 
 sk-ntp-fix(){
   sudo service chrony stop
@@ -27,11 +149,61 @@ sk-sys-cores(){
   fi
 }
 
+sk-awk(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install gawk -p gawk
+    gawk $@
+  else
+    awk $@
+  fi
+}
+
+
+sk-grep(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install ggrep -p grep
+    ggrep $@
+  else
+    grep $@
+  fi
+}
+
 sk-datediff-setup(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
     sk-pack-install datediff -p dateutils
   else
     sk-pack-install dateutils.ddiff -p dateutils
+  fi
+}
+
+# needs to run as sudo
+sk-tcptraceroute-port(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install tcptraceroute
+    sudo tcptraceroute $@
+  else
+    sk-pack-install traceroute
+    sudo traceroute -T $@
+  fi
+}
+
+sk-tcptraceroute(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install tcptraceroute
+    tcptraceroute $@
+  else
+    sk-pack-install traceroute
+    traceroute -T $@
+  fi
+}
+
+sk-traceroute(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install gtraceroute -p inetutils
+    gtraceroute $@
+  else
+    sk-pack-install traceroute
+    traceroute $@
   fi
 }
 
@@ -41,6 +213,33 @@ sk-sed(){
     gsed $@
   else
     sed $@
+  fi
+}
+
+sk-readlink-f(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install greadlink -p coreutils
+    greadlink -f $@
+  else
+    readlink -f $@
+  fi
+}
+
+sk-readlink-e(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install greadlink -p coreutils
+    greadlink -e $@
+  else
+    readlink -e $@
+  fi
+}
+
+sk-realpath(){
+  if [[ "$PLATFORM" == 'Darwin' ]];then
+    sk-pack-install grealpath -p coreutils
+    grealpath $@
+  else
+    realpath $@
   fi
 }
 

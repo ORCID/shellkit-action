@@ -26,7 +26,15 @@ sk-file-older-than(){
   local file=${1:-/var/tmp/} days=${2:-1}
   sk_help "Usage: $FUNCNAME <file> <days>" "$@" && return 1
 
-  [[ ! -f "$file" ]] && return 1
+  if [[ -f "$file" ]];then
+    foo=bar
+  elif [[ -d "$file" ]];then
+    foo=bar
+  else
+    log "file or dir does not exist"
+    return 1
+  fi
+
   if test "`find $file -mtime +$days`";then
     return 0
   else
@@ -207,36 +215,9 @@ sk-file-between-dates(){
   echo $result
 }
 
-
-
-sk-file-readlink(){
-  sk_help_noarg "$FUNCNAME: <file>. Macos compatible version of readlink to return the full path of file" "$@" && return
-  local target=$1
-  local dir=''
-  current_dir=`pwd`
-  cd $(dirname "$target")
-  target=$(basename "$target")
-
-  # Iterate down a (possible) chain of symlinks
-  while [ -L "$target" ]
-  do
-      target=$(readlink "$target")
-      cd $(dirname "$target")
-      target=$(basename "$target")
-  done
-
-  # Compute the canonicalized name by finding the physical path
-  # for the directory we're in and appending the target file.
-  dir=`pwd -P`
-  result="$dir/$target"
-  cd $current_dir
-  echo $result
-
-}
-
 sk-file-ls-tree() {
   for d in $@; do
-    d=$(sk-file-readlink "$d")
+    d=$(sk-readlink-f "$d")
     (
     while [ "$d" != "/" ]; do
       echo $d
@@ -301,6 +282,27 @@ sk-file-downcase() {
 sk-file-sum-mb(){
   sk_help "<match of files in current dir>. Show the size of files in mb" "$@" && return 1
   ls -FaGl --block-size=M "${@}" | awk '{ total += $4 }; END { print total }'
+}
+
+sk-file-perms-user-read(){
+  sk_help_noarg "Usage: $FUNCNAME <file>. Check if file is readable only by the current user" "$@" && return
+  local file=${1:-/tmp}
+  local mode
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS uses BSD stat
+    mode=$(stat -f "%p" "$file")
+  else
+    # Linux uses GNU stat
+    mode=$(stat -c "%a" "$file")
+  fi
+
+  if [[ "$mode" == "100400" || "$mode" == "400" ]]; then
+    foo='bar'
+  else
+    echo "File $file has permissions that are too open and not 400"
+    return 1
+  fi
 }
 
 sk-file-exists(){
