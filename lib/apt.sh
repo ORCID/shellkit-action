@@ -102,6 +102,7 @@ _builder_setup(){
     touch "$HOME/build/var/lib/dpkg/status"
     mkdir -p "$HOME/build/var/lib/apt"
     mkdir -p "$HOME/build/var/cache/apt"
+    mkdir -p "$HOME/build/var/lib/apt/lists/partial"
   fi
   export BUILDER_WORKDIR="$HOME/build"
 }
