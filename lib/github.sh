@@ -6,6 +6,10 @@ alias ghpr="gh pr create"
 alias al=sk-github-actionlint
 alias ghal=sk-github-actionlint
 
+github_poke_slack_channel='tech-ops'
+github_version=2.54.0
+
+
 sk-github-actionlint(){
   local file=${1:default}
   sk-asdf-install actionlint -p actionlint -v 1.6.15 --plugin_git_url git@github.com:crazy-matt/asdf-actionlint.git
@@ -34,8 +38,61 @@ sk-gitflow-conf(){
 
 alias gfi=sk-github-flow-init
 
+sk-github-repo(){
+  git config --get remote.origin.url | perl -ne '/\/(.*)\.git/ && print $1'
+}
+
+sk-github-cache-list(){
+
+  local github_org=$(sk-github-org)
+  local github_repo=$(sk-github-repo)
+
+  # List all cache entries
+  local cache_ids=$(gh api -H "Accept: application/vnd.github.v3+json" \
+  /repos/$github_org/$github_repo/actions/caches)
+
+  echo "$cache_ids"
+}
+
+sk-github-cache-list-ids(){
+
+  local github_org=$(sk-github-org)
+  local github_repo=$(sk-github-repo)
+  sk-asdf-install jq -p jq -v 1.6
+  # List all cache entries
+  local cache_ids=$(gh api -H "Accept: application/vnd.github.v3+json" \
+  /repos/$github_org/$github_repo/actions/caches \
+    | jq -r '.actions_caches[].id')
+
+  echo "$cache_ids"
+}
+
+sk-github-clean-cache(){
+  local cache_ids=$(sk-github-cache-list-ids)
+  local github_org=$(sk-github-org)
+  local github_repo=$(sk-github-repo)
+  # Delete each cache entry
+  for cache_id in $cache_ids; do
+    echo "Deleting cache ID: $cache_id"
+    gh api -X DELETE -H "Accept: application/vnd.github.v3+json" \
+    /repos/$github_org/$github_repo/actions/caches/$cache_id
+  done
+}
+
+sk-github-pr-check-runs(){
+  default_pr=$(_sk-github-pr-number-branch)
+  local pr_number=${1:-$default_pr}
+  commit_sha=$(gh pr view $pr_number --json commits --jq '.commits[-1].oid')
+  echo $commit_sha
+  _sk-github-config $(sk-github-org)
+  sk-asdf-install jq -p jq -v 1.6
+
+  gh api repos/$(sk-github-org)/$(sk-github-repo)/commits/$commit_sha/check-runs --jq '.check_runs[] | {name, status, conclusion}'
+}
+
+
 sk-github-flow-init(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
+  sk-asdf-install gh -p github-cli -v $github_version
   sk-gitflow-conf
   _sk-github-config $(sk-github-org)
 
@@ -65,7 +122,7 @@ alias prp=sk-gitgub-pr-poke
 alias poke=sk-gitgub-pr-poke
 
 sk-gitgub-pr-poke(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
+  sk-asdf-install gh -p github-cli -v $github_version
   pr_url=$(_sk-github-pr-url-branch)
   if [[ "$pr_url" == '' ]];then
     sk-github-pr-create
@@ -79,7 +136,7 @@ sk-gitgub-pr-poke(){
 }
 
 sk-github-pr-merge(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
+  sk-asdf-install gh -p github-cli -v $github_version
   pr_url=$(_sk-github-pr-url-branch)
   gh pr merge $pr_url --merge
 }
@@ -87,7 +144,7 @@ sk-github-pr-merge(){
 alias review=sk-github-pr-review
 
 sk-github-pr-review(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
+  sk-asdf-install gh -p github-cli -v $github_version
   pr_url=$(_sk-github-pr-url-branch)
 
   if [[ "$pr_url" == '' ]];then
@@ -121,9 +178,19 @@ sk-github-is-fork(){
   fi
 }
 
+alias prm=sk-github-pr-merge
+
+sk-github-pr-merge(){
+  sk-asdf-install gh -p github-cli -v $github_version
+  sk-gitflow-conf
+
+  sk-github-pr-create
+  gh pr merge -m
+}
+
 alias pr=sk-github-pr-create
 sk-github-pr-create(){
-  sk-asdf-install gh -p github-cli -v 2.13.0
+  sk-asdf-install gh -p github-cli -v $github_version
   sk-gitflow-conf
 
   trello_id='unset'
@@ -213,7 +280,10 @@ sk-github-pr-create(){
         return
       fi
       sk-git-commit-force "$github_title"
-      pr_details=$(gh pr create $github_base_arg $gf_base_branch $github_reviewer_arg --title "$github_title" --body-file "$body_file" 2> $pr_err_file)
+      if ! pr_details=$(gh pr create $github_base_arg $gf_base_branch $github_reviewer_arg --title "$github_title" --body-file "$body_file" 2> $pr_err_file);then
+        echo "unknown error" ; echo "pr creation failed with $(cat $pr_err_file)"; return
+      fi
+
     else
       echo "unknown error" ; echo "pr creation failed with $(cat $pr_err_file)"; return
     fi
@@ -280,20 +350,73 @@ sk-git-creds(){
 
 alias ghw=sk-github-run-workflow-with-logs
 
+
+_sk-github-tf-parse-apply(){
+  cat "$tf_apply_file" | grep 'Apply Plan' | cut -d' ' -f7-
+}
+
+_sk-github-tf-parse-plan(){
+  tf_plan_id=$(cat $tf_run_file | grep 'Run ID for this workflow is' | tail -n1 | sed 's/.*: //')
+  echo "tf_plan_id=$tf_plan_id"
+
+  tf_plan_changes=$(cat $tf_run_file |  cut -d' ' -f7- | awk '/perform the following actions:/ {found=1; next} found' | awk '/plan to: planfile/ {exit} {print}' )
+  echo "tf_plan_changes:"
+  echo "$tf_plan_changes"
+}
+
+sk-github-tf-plan-run(){
+  gh workflow run 'Terraform Plan'
+}
+
+sk-github-tf-plan-view(){
+  tmp_dir=$(sk-tmp-userdir)
+  tf_run_file="$tmp_dir/tf.run"
+  sk-github-workflow-latest 'Terraform Plan' > $tf_run_file
+  _sk-github-tf-parse-plan
+}
+
+sk-github-tf-apply-view(){
+  tmp_dir=$(sk-tmp-userdir)
+  tf_apply_file="$tmp_dir/tf.apply"
+  sk-github-workflow-latest 'Terraform Apply' > $tf_apply_file
+  _sk-github-tf-parse-apply
+  echo "tf_apply_file=$tf_apply_file"
+}
+
+sk-github-tf-apply-sleep(){
+  echo "sleeping 100s"
+  sleep 100
+  sk-github-tf-plan-view
+  if sk-prompt-confirm;then
+    gh workflow run 'Terraform Apply' -f terraform_plan_checked=Yes -f plan-run-id="$tf_plan_id"
+  fi
+}
+
+sk-github-tf-apply(){
+  sk-github-tf-plan-view
+  if sk-prompt-confirm;then
+    gh workflow run 'Terraform Apply' -f terraform_plan_checked=Yes -f plan-run-id="$tf_plan_id"
+  fi
+}
+
 sk-github-run-workflow-with-logs(){
   local workflow=${1:-default}
   _sk-github-config $(sk-github-org)
-  gh workflow run $workflow
+  gh workflow run "$workflow"
   latest_job_id=$(gh run list | head -1 | awk -F'\t' '{print $7}')
   gh run view $latest_job_id --log
 }
 
 sk-github-workflow-latest(){
   _sk-github-config
-  latest_job_id=$(gh run list | head -1 | awk -F'\t' '{print $7}')
+  local workflow=${1:-all}
+  if [[ "$workflow" = 'all' ]];then
+    latest_job_id=$(gh run list | head -1 | awk -F'\t' '{print $7}')
+  else
+    latest_job_id=$(gh run list --workflow "$workflow" | head -1 | awk -F'\t' '{print $7}')
+  fi
   gh run view $latest_job_id --log
 }
-
 
 _sk-github_curl(){
   curl -s -H "Accept: application/vnd.github.v3+json" -u "$GITHUB_USERNAME:$GITHUB_TOKEN"  "$@"
@@ -332,7 +455,7 @@ _sk-github-config(){
 }
 
 sk-github-runner-ips(){
-  sk-asdf-install gh -p github-cli -v 2.13.0 --silent
+  sk-asdf-install gh -p github-cli -v $github_version --silent
   sk-asdf-install jq -p jq -v 1.6 --silent
 
   gh api -H "Accept: application/vnd.github+json" /meta | jq -r .actions | grep -E '[0-9]\/' | sed 's/["|,| ]//g' | sk-ip-merge
@@ -453,4 +576,23 @@ sk-github-create-repo(){
 
   gh repo create $namespace/$repo $visibility_arg
 
+}
+
+sk-github-dependabot-alerts(){
+  sk_help "
+    Usage: $FUNCNAME
+
+    Description:
+
+      Lists all the dependabot alerts for the ORCID org, in tab separated format.
+      You may need to enable the 'repos' permission for your github token.
+
+    Options:
+
+    "  "$@" && return 1
+
+  sk-asdf-install gh -p github-cli -v $github_version --silent
+  sk-asdf-install jq -p jq -v 1.6 --silent
+
+  gh api --paginate /orgs/ORCID/dependabot/alerts | jq -rs '{critical: 1, high: 2, medium: 3, low: 4} as $levels | flatten | sort_by(.repository.name, $levels[.security_advisory.severity]) | .[] | .repository.name + "\t" + .dependency.package.ecosystem + "\t" + .dependency.package.name + "\t" + .security_advisory.severity + "\t" + .html_url'
 }
