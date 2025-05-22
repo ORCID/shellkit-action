@@ -97,7 +97,7 @@ sk-apt-add-custom-source(){
 ####################################################
 
 _builder_setup(){
-  if [[ ! -d "$HOME/build" ]];then
+  if [[ ! -d "$HOME/build/var/lib/dpkg" ]];then
     mkdir -p "$HOME/build/var/lib/dpkg"
     touch "$HOME/build/var/lib/dpkg/status"
     mkdir -p "$HOME/build/var/lib/apt"
