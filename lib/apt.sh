@@ -73,7 +73,7 @@ sk-apt-distupgrade-manual(){
 
 sk-apt-support-eol(){
   sk_help "Usage: $FUNCNAME. Migrate an EOL Ubuntu server to the old-releases apt repo. This should be a last resort as we should be upgrading them. Use when OS and code dependencies exist that block an upgrade." "$@" && return
-  sudo perl -pi -e 's/us-east-1\.ec2\.archive\.ubuntu\.com/old-releases\.ubuntu\.com/g' /etc/apt/sources.list
+  sudo perl -pi -e 's/us-east-\d+\.ec2\.archive\.ubuntu\.com/old-releases\.ubuntu\.com/g' /etc/apt/sources.list
   sudo perl -pi -e 's/gb\.archive\.ubuntu\.com/old-releases\.ubuntu\.com/g' /etc/apt/sources.list
   sudo perl -pi -e 's/security\.ubuntu\.com/old-releases\.ubuntu\.com/g' /etc/apt/sources.list
   sudo perl -pi -e 's/deb-src.*$//g' /etc/apt/sources.list
@@ -94,17 +94,74 @@ sk-apt-add-custom-source(){
     sudo bash -c "echo $@ > $source_filename"
   fi
 }
+####################################################
+
+_builder_setup(){
+  if [[ ! -d "$HOME/build" ]];then
+    mkdir -p "$HOME/build/var/lib/dpkg"
+    touch "$HOME/build/var/lib/dpkg/status"
+    mkdir -p "$HOME/build/var/lib/apt"
+    mkdir -p "$HOME/build/var/cache/apt"
+  fi
+  export BUILDER_WORKDIR="$HOME/build"
+}
+
+sk-apt-builder-distro-config(){
+  local distribution=${1:-$DISTRIB_CODENAME}
+  _builder_setup
+echo "
+Dir::State "$BUILDER_WORKDIR/var/lib/apt";
+Dir::State::status "$BUILDER_WORKDIR/var/lib/dpkg/status";
+Dir::Etc::SourceList "$BUILDER_WORKDIR/$distribution.list";
+Dir::Cache "$BUILDER_WORKDIR/var/cache/apt";
+Dir::Etc::sourceparts "-";
+APT::Get::List-Cleanup "0";
+pkgCacheGen::Essential "none";
+" > $BUILDER_WORKDIR/$distribution.config
+}
+
+sk-apt-builder-source-package(){
+  local package=${1:-wibble}
+  local distribution=${2:-$DISTRIB_CODENAME}
+  sk-apt-builder-distro-source $distribution
+  sk-apt-builder-distro-config $distribution
+  apt-get update -c $BUILDER_WORKDIR/$distribution.config
+  apt-get source $package -c $BUILDER_WORKDIR/$distribution.config
+}
+
+sk-apt-builder-distro-source(){
+  _builder_setup
+  local distribution=${1:-$DISTRIB_CODENAME}
+  sk-apt-add-distro-source $distribution /$HOME/build/$distribution.list
+}
+
+##########################################################
+
+sk-apt-distro-is-eol(){
+  local distribution=${1:-$DISTRIB_CODENAME}
+  local tmp_dir=$(sk-tmp-userdir)
+  curl -s https://changelogs.ubuntu.com/meta-release >> $tmp_dir/meta-release
+  if grep -q $distribution $tmp_dir/meta-release | grep -q old-releases;then
+    return 0
+  else
+    return 1
+  fi
+}
 
 sk-apt-add-distro-source(){
   sk_help_noarg "$FUNCNAME <distro> <listname>.  Add /etc/apt/sources.list.d/<listname>.list" "$@" && return
-  local distribution=$1
+  local distribution=${1:-$DISTRIB_CODENAME}
   local listfile=${2:-/etc/apt/sources.list.d/$distribution}
 
   # sources.list format: deb uri distribution [component1] [component2] [...]
   [ ! -d /etc/apt/sources.list.d ] && sudo mkdir /etc/apt/sources.list.d
 
   # start with a new file
-  sudo rm -f $listfile
+  if grep -q etc <<< "$(echo $listfile)" ;then
+    sudo rm -f $listfile
+  else
+    rm -f $listfile
+  fi
 
   lsbdistid=$(lsb_release -i | awk '{print $3}')
   case $lsbdistid in
@@ -115,15 +172,22 @@ sk-apt-add-distro-source(){
 
   local distribution_list="$distribution ${distribution}-updates ${distribution}-backports"
   echo $distribution_list
-  case $distribution in
-    lucid)      local uri_list="http://old-releases.ubuntu.com/ubuntu/";;
-    *)          local uri_list="http://gb.archive.ubuntu.com/ubuntu/ http://security.ubuntu.com/ubuntu";;
-  esac
+
+  if sk-apt-distro-is-eol ;then
+    local uri_list="http://old-releases.ubuntu.com/ubuntu/"
+  else
+    local uri_list="http://gb.archive.ubuntu.com/ubuntu/ http://security.ubuntu.com/ubuntu"
+  fi
 
   for uri in $uri_list;do
     grep -q security <<< $(echo "$uri") && distribution_list="${distribution}-security"
     for distribution_name in $distribution_list;do
-      sudo bash -c "echo 'deb-src $uri $distribution_name $components' >> $listfile"
+      if grep -q etc <<< "$(echo $listfile)" ;then
+        sudo bash -c "echo 'deb-src $uri $distribution_name $components' >> $listfile"
+      else
+        bash -c "echo 'deb-src $uri $distribution_name $components' >> $listfile"
+      fi
+
     done
   done
 
