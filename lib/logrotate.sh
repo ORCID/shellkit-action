@@ -28,9 +28,11 @@ sk-logrotate(){
 
   if [[ -d /usr/local/etc/logrotate.d ]];then
     logrotate_config_file=/usr/local/etc/logrotate.d/${config_name}
+    export LOGROTATE_CONFIG_FILE=$logrotate_config_file
     logrotate_sudo=0
   else
     logrotate_config_file=/etc/logrotate.d/${config_name}
+    export LOGROTATE_CONFIG_FILE=$logrotate_config_file
     logrotate_sudo=1
   fi
 
