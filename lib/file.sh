@@ -107,8 +107,8 @@ sk-file-tar-duplicates(){
   sk_help_noarg "Usage: $FUNCNAME <tar_file>. Print any duplication files in a tar.gz tar.bz2 tar file" "$@" && return
   local tarfile=${1:-/tmp}
   case $tarfile in
-    *.gz) sk-pack-install pigz pigz; use_compress_prog="--use-compress-prog=pigz" ;;
-    *.bz2) sk-pack-install pbzip2 pbzip2; use_compress_prog="--use-compress-prog=pbzip2" ;;
+    *.gz) sk-pack-install -b pigz pigz; use_compress_prog="--use-compress-prog=pigz" ;;
+    *.bz2) sk-pack-install -b pbzip2 pbzip2; use_compress_prog="--use-compress-prog=pbzip2" ;;
     *) use_compress_prog="";;
   esac
   echo_log_run_logoutput tar $use_compress_prog -tvf $tarfile | awk '{ print $6 }' | sort | uniq --repeated
@@ -130,8 +130,8 @@ sk-file-decompress() {
   echo $file | grep -q tar && local use_tar='true'
 
   case $file in
-    *gz) sk-pack-install pigz pigz; compress_prog=pigz ;;
-    *bz2) sk-pack-install pbzip2 pbzip2 ; compress_prog=pbzip2 ;;
+    *gz) sk-pack-install -b pigz pigz; compress_prog=pigz ;;
+    *bz2) sk-pack-install -b pbzip2 pbzip2 ; compress_prog=pbzip2 ;;
   esac
 
   if [[ "$use_tar" ]];then
@@ -150,8 +150,8 @@ sk-file-compress() {
   echo $file | grep -q tar && local use_tar='true'
 
   case $file in
-    *gz) sk-pack-install pigz; compress_prog=pigz ;;
-    *bz2) sk-pack-install pbzip2 ; compress_prog=pbzip2 ;;
+    *gz) sk-pack-install -b pigz; compress_prog=pigz ;;
+    *bz2) sk-pack-install -b pbzip2 ; compress_prog=pbzip2 ;;
   esac
 
   if [[ "$use_tar" ]];then
@@ -264,7 +264,7 @@ sk-file-extract () {
 sk-file-compress() {
   sk_help_noarg "Usage: (file or directory) if .bz2 will decompress" $1 && return
   local file=$1
-  sk-pack-install pbzip2
+  sk-pack-install -b pbzip2
   [ ${file: -4} == ".bz2" ] && ( echo_log_run_logoutput pbzip2 -d $file ;return )
   echo_log_run_logoutput tar -cf "$file".tar.bz2 --use-compress-prog=pbzip2 "$file"
 }

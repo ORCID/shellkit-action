@@ -8,3 +8,9 @@ sk-test-true(){
   return 0
 }
 
+sk-test-false(){
+  echo "false"
+  return 1
+}
+
+

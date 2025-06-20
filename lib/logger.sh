@@ -1,39 +1,36 @@
 log(){
-  sk-logger-args $@
+  sk-logger-args "$@"
 }
+
 _sk_logger_common(){
   NAME=${NAME:-shellkit}
   RUN_ID=${RUN_ID:-default}
-  log_name="${NAME}.log"
+  log_name="${LOG_NAME:-"${NAME}.log"}"
 
   if [[ $EUID -ne 0 ]];then
-    log_dir=~/log
+    log_dir_default=~/log
   else
-    log_dir=/var/log/shellkit
+    log_dir_default=/var/log/shellkit
   fi
 
+  log_dir=${LOG_DIR:-$log_dir_default}
+
+  export LOG_DIR=$log_dir
+
   if [[ ! -d "$log_dir" ]];then
-    mkdir $log_dir
-    sk-logrotate --config_name shellkit.$USER --log_dir $log_dir --log_name '*.log'
+    sk-dir-make $log_dir
+    # dont use logrotate if we have a date based log_dir
+    year=$(date +"%Y")
+    if ! grep -q $year <<< $(echo $log_dir);then
+      sk-logrotate --config_name shellkit.$USER --log_dir $log_dir --log_name '*.log'
+    fi
   fi
 }
 
 # Special function just for stdout to not wait on input
 # exec 2> >(errout)
 sk-logger-stdout(){
-  NAME=${NAME:-shellkit}
-  RUN_ID=${RUN_ID:-default}
-  log_name="${NAME}.log"
-
-  if [[ $EUID -ne 0 ]];then
-    log_dir=~/log
-  else
-    log_dir=/var/log/shellkit
-  fi
-
-  if [[ ! -d "$log_dir" ]];then
-    mkdir $log_dir
-  fi
+  _sk_logger_common
 
   sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}
 }
@@ -42,19 +39,7 @@ sk-logger-stdout(){
 # exec 2> >(sk-logger)
 # exec 1> >(sk-logger)
 sk-logger-noout(){
-  NAME=${NAME:-shellkit}
-  RUN_ID=${RUN_ID:-default}
-  log_name="${NAME}.log"
-
-  if [[ $EUID -ne 0 ]];then
-    log_dir=~/log
-  else
-    log_dir=/var/log/shellkit
-  fi
-
-  if [[ ! -d "$log_dir" ]];then
-    mkdir $log_dir
-  fi
+  _sk_logger_common
 
   sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name}  1>/dev/null
 }
@@ -62,37 +47,13 @@ sk-logger-noout(){
 
 # Special function just for stderr to not wait on input
 sk-logger-stderr(){
-  NAME=${NAME:-shellkit}
-  RUN_ID=${RUN_ID:-default}
-  log_name="${NAME}.log"
-
-  if [[ $EUID -ne 0 ]];then
-    log_dir=~/log
-  else
-    log_dir=/var/log/shellkit
-  fi
-
-  if [[ ! -d "$log_dir" ]];then
-    mkdir $log_dir
-  fi
+  _sk_logger_common
 
   sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} >&2
 }
 
 sk-logger-stderr-keyevent(){
-  NAME=${NAME:-shellkit}
-  RUN_ID=${RUN_ID:-default}
-  log_name="${NAME}.log"
-
-  if [[ $EUID -ne 0 ]];then
-    log_dir=~/log
-  else
-    log_dir=/var/log/shellkit
-  fi
-
-  if [[ ! -d "$log_dir" ]];then
-    mkdir $log_dir
-  fi
+  _sk_logger_common
 
   sed "s/^/$(date  "+%b %d %H:%M:%S") $(hostname -s) ${NAME} $RUN_ID: /" | tee -a ${log_dir}/${log_name} | slacktee --channel $KEYEVENT_CHANNEL --username $(whoami)
 }

@@ -1,3 +1,7 @@
+sk-trans-comma-to-newline(){
+  echo "$@" |  tr "," "\n"
+}
+
 sk-trans-upcase-first-letter(){
   local word=${1:-bar}
   echo $(tr '[:lower:]' '[:upper:]' <<< ${word:0:1})${word:1}
@@ -17,6 +21,10 @@ sk-trans-strip-colour(){
 
 sk-trans-space-to-dash(){
   echo "$@" |tr ' ' '-'
+}
+
+sk-trans-nonword-to-underscore(){
+  echo "$@" | perl -pe 's/\W+/_/g; s/_+$//'
 }
 
 sk-trans-dash-to-underscore(){

@@ -2,6 +2,13 @@
 # Time
 #
 
+sk-time-sec-between(){
+  sk_help_noarg "Usage: $FUNCNAME <start_time>s <end_time>s. return the difference" "$@" && return
+  local start=${1:-0} end=${2:-5}
+  sk-pack-install -b bc
+  echo "($end - $start)" | bc
+}
+
 sk-time-sec2h() {
   sk_help_noarg "Usage: $FUNCNAME SECONDS" "$@" && return
   perl -e '

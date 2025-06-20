@@ -168,7 +168,7 @@ sk-deb-cleanup-repo(){
 sk-deb-build-dep(){
   sk_help "Usage: $FUNCNAME <package> install a source package dependencies via a meta package for flexibility." "$@" && return 1
   [ -d debian ] || ( echo "Must run in a package dir" && return )
-  sk-pack-install equivs-build -p equivs
+  sk-pack-install -b equivs-build -p equivs
   echo_log_run_logoutput mk-build-deps
   echo_log_run_logoutput sudo dpkg -i *build-deps*.deb
   echo_log_run_logoutput rm -f *build-deps*.deb
@@ -213,7 +213,7 @@ sk-deb-backport-upload(){
 sk-deb-parse(){
   sk_help_noarg "Usage: $FUNCNAME <deb file>. Parse the deb files info and initialize variable from it like Version " "$@" && return 1
   local deb_file=${1:-default}
-  sk-pack-install dpkg
+  sk-pack-install -b dpkg
   dpkg-deb -f $deb_file > /tmp/$(basename $deb_file).parsed
   eval `perl -n -e'/^(\w+): (\S+)$/ && print "$1=$2\n"' /tmp/$(basename $deb_file).parsed`
   rm /tmp/$(basename $deb_file).parsed
@@ -222,7 +222,7 @@ sk-deb-parse(){
 sk-deb-distribution(){
   sk_help_noarg "Usage: $FUNCNAME <deb file>. Extract the distribution from a deb files changelog" "$@" && return 1
   local deb_file=${1:-default} parsed_distro=''
-  sk-pack-install dpkg
+  sk-pack-install -b dpkg
   if parsed_distro=$(dpkg --fsys-tarfile $deb_file  | sk-tar xOf - --wildcards ./usr/share/doc/*/changelog.Debian.gz | zcat | sk-head -n1 | awk '{print $3}' | tr -d ';') ;then
     # strip any variation like pgdg or security off
     echo $parsed_distro | sed 's/-.*//'
@@ -264,11 +264,11 @@ sk-deb-backport-package(){
     esac
   done
 
-  sk-pack-install dpkg-source -p dpkg-dev
+  sk-pack-install -b dpkg-source -p dpkg-dev
   # unpacking sources
-  sk-pack-install debuild -p devscripts
+  sk-pack-install -b debuild -p devscripts
   # unused but allows for distro validation
-  sk-pack-install null --file /usr/share/perl5/Debian/DistroInfo.pm  -p libdistro-info-perl
+  sk-pack-install -b null --file /usr/share/perl5/Debian/DistroInfo.pm  -p libdistro-info-perl
 
   local tmp_dir="/var/tmp/sk-deb-backport-build-${package}.${USER}" package_dir="/var/tmp/sk-deb-backport-package-${package}.${USER}"
 

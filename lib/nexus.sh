@@ -154,7 +154,7 @@ sk-nexus-md5-match(){
         *)  break ;;
     esac
   done
-  sk-pack-install md5sum -p coreutils
+  sk-pack-install -b md5sum -p coreutils
   sk-asdf-install jq -p jq -v 1.6
 
   sk-nexus-creds; _sk-nexus-tmpdirs
@@ -302,7 +302,7 @@ sk-nexus-uploadfile(){
   fi
 
   sk-asdf-install jq -p jq -v 1.6
-  sk-pack-install md5sum -p coreutils
+  sk-pack-install -b md5sum -p coreutils
 
   local md5_upload_file=$(md5sum $upload_file | awk '{print $1}' )
 

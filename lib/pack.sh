@@ -6,17 +6,19 @@ sk-pack-distro-from-file(){
 
 
 sk-pack-install() {
-  local binary=${1:-true}
-  if command -v $binary &>/dev/null;then
-    return
-  fi
-  shift
-  sk_help "
-    Usage: $FUNCNAME <binary_to_check_for>
+
+  usage(){
+    echo "
+    Usage: $FUNCNAME -b <binary>
 
     Description:
-      Wrapper around upt rust universal package installer to install packages from various sources until a specific binary exists on a users path
+      Install packages silently on various distros only if a binary doesn't exist
+      On macos require that the package comes from homebrew to keep Linux compatiblity
+
+    Options:
+        -b| --binary) test if this binary exists and if not install from package manager
         -p| --package) package to install if it's name is different from the binary
+        -mp | --mac_package) option to provide a different apple package
         -a| --ppa ) ppa mode
         -o| --repoform ) gem, run (curl with bash), download (curl --output <binary> <repo>) , npm
         -r| --repo ) repository to use for ppa say
@@ -24,19 +26,19 @@ sk-pack-install() {
         -d| --dir ) test for a directory if a package does not have a binary
         -f| --file ) test for a file if a package does not have a binary
 
-    Example: sk-pack-install hatop --repo ppa:vshn/hatop --ppa
-
-
-    Options:
-    "  "$@" && return 1
-
-  local ppa=0 package_type='' repo='' repoform='' package=$binary version='' dir='unset' file='unset' post_install='' npm='unset' sudo_cmd=''
+    Example: sk-pack-install -b hatop --repo ppa:vshn/hatop --ppa
+    "
+  }
+  local ppa=0 package_type='' repo='' repoform='' package='unset' version='' dir='unset' file='unset' post_install='' npm='unset' sudo_cmd='' mac_package='unset' binary='unset'
 
   while :
   do
     case ${1-default} in
+        -b | --binary)   binary=$2 ; package=$2; shift 2 ;;
         -p | --package)   package=$2; shift 2 ;;
+        -mp | --mac_package)   mac_package=$2; shift 2 ;;
         -pi | --post_install)   post_install=$2; shift 2 ;;
+        -kf | --keg_force)   keg_force=1; shift ;;
         -a | --ppa )   ppa=1; shift ;;
         -o | --repoform ) repoform=$2; shift 2 ;;
         -r | --repo )  repo=$2; shift 2 ;;
@@ -44,11 +46,22 @@ sk-pack-install() {
         -d | --dir )  dir=$2; shift 2 ;;
         -f | --file )  file=$2; shift 2 ;;
         --verbose )   VERBOSE=$((VERBOSE+1)); shift ;;
+        --help ) usage; return;  shift ;;
         --) shift ; break ;;
         -*) echo "$FUNCNAME WARN: Unknown option (ignored): $1" >&2 ; shift ;;
         *)  break ;;
     esac
   done
+
+  if [[ "$binary" != 'unset' ]];then
+    if [[ "$PLATFORM" = 'Darwin' ]];then
+      if command -v $binary | grep -qE 'homebrew|local';then
+        return
+      fi
+    elif command -v $binary &>/dev/null;then
+      return
+    fi
+  fi
 
   if [[ ! -z $post_install ]];then
     $post_install || true
@@ -71,7 +84,7 @@ sk-pack-install() {
     fi
   fi
 
-
+  [[ "$binary" = 'unset' ]] && return
 
   log "Bootstraping ${package} as ${binary} was not found"
   local version_cmd=''
@@ -103,15 +116,27 @@ sk-pack-install() {
       curl -s $repo | sudo bash
     ;;
     *)
-      sk-asdf-install upt -p upt -v 0.3.0 --silent --plugin_git_url https://github.com/ORCID/asdf-upt.git
-      if [[ "$PLATFORM" = 'Darwin' ]];then
-        upt install -y $package
-      else
-        sudo -E $(which upt) install -y $package 2>/dev/null 1>&2
+      if [[ "$mac_package" != 'unset' ]];then
+        package=$mac_package
       fi
+      sk-pack-install-cmd "$package" 2>/dev/null 1>&2
     ;;
   esac
 
+}
+
+sk-pack-install-cmd(){
+  if [[ "$PLATFORM" = 'Darwin' ]];then
+    if ! command -v brew &>/dev/null;then
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+    brew install "$1"
+    if [ "${keg_force-}" = 1 ];then
+      brew link --force "$1"
+    fi
+  else
+    sudo apt-get install --quiet -y "$1" --no-install-recommends
+  fi
 }
 
 sk-pack-fpm(){
@@ -169,7 +194,7 @@ EOF
   # add some more search paths to find fpm on
   export PATH=$PATH:/var/lib/gems/1.8/bin/:/usr/local/bin
 
-  sk-pack-install fpm -f gem -v 1.6.2
+  sk-pack-install -b fpm -f gem -v 1.6.2
 
   fpm -s $type -t $output -m blar -n $name -v $version -a $arch --description 'sk-pack-fpm' --deb-no-default-config-files --exclude */build/tmp --after-install /tmp/after-install.sh "$dir"
 

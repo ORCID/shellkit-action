@@ -63,9 +63,6 @@ sk-catch(){
 
   error_stack="ERROR: $NAME line $line - command: '$command' expanded: '$expanded_command' errored with status: $exit_code linecallfunc $linecallfunc"
 
-  # always log errors
-  log "$error_stack"
-
   if [[ "$output" = 'stdout' ]];then
     echo "$error_stack"
   fi
@@ -73,6 +70,9 @@ sk-catch(){
   if [[ "$output" = 'stderr' ]];then
     2>& echo "$error_stack"
   fi
+
+  # always log errors
+  log "$error_stack"
 
   if [[ "$keyevent" -eq 1 ]];then
     keyevent "$error_stack"

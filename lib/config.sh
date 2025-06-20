@@ -3,7 +3,7 @@
 #
 
 sk-config-read(){
-  local profile='' config_found='' vars=unused fail_on_missing_config=0
+  local profile='' config_found='' vars=unused fail_on_missing_config=0 perms_check='unset'
   sk_help "Usage: $FUNCNAME. -c <config_filename>
 
     Look for a config file based on an order:-
@@ -15,20 +15,20 @@ sk-config-read(){
       3: /etc/
       4: /etc/config_file_no_extension_or_dot/
 
-    and source that config file for any BASH variables
+    and source that config file for any BASH variables, if the extension .ini is used source that format
 
     Options:
         -c | --config_file ) config file name (e.g .artifact.conf)
-        -p | --profile ) TODO add ini file support
         -V | --vars ) comma separated list of variables to check for
         -f | --fail_on_missing_config ) fail if the config file is missing
+        -P | --perms_check ) check that the config file have 400 permissions
 " "$@" && return
 
   while :
   do
     case ${1-default} in
         -c | --config_file ) local config_file=$2 ; shift 2;;
-        -p | --profile ) local profile=$2 ; shift 2;;
+        -P | --perms_check ) local perms_check=1 ; shift ;;
         -V | --vars ) local vars=$2 ; shift 2;;
         -f | --fail_on_missing_config ) local fail_on_missing_config=1 ; shift ;;
         --verbose )        VERBOSE=$((VERBOSE+1)); shift ;;
@@ -41,7 +41,19 @@ sk-config-read(){
   config_list="./$config_file ~/.$config_file ~/$config_file /etc/$config_file /etc/$config_base/$config_file"
 
   if config_found=$(_sk-config-selector $config_list);then
-    source $config_found 2> /dev/null
+
+    if [[ "$perms_check" != 'unset' ]];then
+      if ! sk-file-perms-user-read $config_found;then
+        return
+      fi
+    fi
+
+    if echo "$config_found" | grep -q '.ini';then
+      sk-ini-parser $config_found
+      return
+    else
+      source $config_found 2> /dev/null
+    fi
   elif [[ "$fail_on_missing_config" -eq 1 ]];then
     echo_log "FATAL missing config from $config_list"
     return 1

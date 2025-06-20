@@ -24,7 +24,7 @@ sk-logrotate(){
     esac
   done
 
-  sk-pack-install logrotate --post_install 'brew services start logrotate'
+  sk-pack-install -b logrotate --post_install 'brew services start logrotate'
 
   if [[ -d /usr/local/etc/logrotate.d ]];then
     logrotate_config_file=/usr/local/etc/logrotate.d/${config_name}

@@ -1,8 +1,24 @@
+_sk_aws_region(){
+  if _sk_aws_host;then
+    curl -s http://169.254.169.254/latest/dynamic/instance-identity/document|jq -r .region
+  else
+    echo 'us-east-2'
+  fi
+}
+
+_sk_aws_host(){
+  if grep -q 'i-' <<< $(cat /sys/devices/virtual/dmi/id/board_asset_tag 2>/dev/null);then
+    return 0
+  else
+    return 1
+  fi
+}
+
 sk-aws-rds-failover(){
   sk_help "$FUNCNAME: <db instance> <region> <profile>" "$@" && return
   region=${2:-'eu-west-1'}
   profile=${3:-blar}
-  sk-pack-install aws -p awscli
+  sk-pack-install -b aws -p awscli
   aws --region $region --profile $profile rds reboot-db-instance --db-instance-identifier $1  --force-failover
 }
 
@@ -55,6 +71,13 @@ sk-aws-ip-ranges() {
 
 ######################################
 
+sk-aws-sso-profile(){
+  local profile="${1:-orcid-qa}"
+  aws sso login --profile $profile
+  aws sts get-caller-identity --profile $profile
+}
+
+
 sk-aws-mfa-device-serial-number() {
   sk_help_noarg "Usage: $FUNCNAME <mfa device serial number>. Sets your MFA device for cli use - see 'Assigned MFA device' in the Security Credentials section of your AWS account." "$@" && return
   export AWS_MFA_DEVICE_SERIAL_NUMBER=$1
@@ -79,7 +102,7 @@ sk-aws-mfa-clear-session() {
 sk-aws-secret-source(){
   sk_help_noarg "Usage: $FUNCNAME <secret_id>. Source key=value secrets into your bash script" "$@" && return
   sk-asdf-install jq -p jq -v 1.6
-  sk-pack-install aws -p awscli
+  sk-pack-install -b aws -p awscli
 
   local aws_secret_id=${1:-default}
   local secret_tmp_file=~/${aws_secret_id}.env
@@ -88,4 +111,11 @@ sk-aws-secret-source(){
   aws secretsmanager get-secret-value --secret-id ${aws_secret_id} --query SecretString --output text | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' > $secret_tmp_file
   source $secret_tmp_file
   rm $secret_tmp_file
+}
+
+sk-aws-list-instances(){
+  sk_help "Usage: $FUNCNAME. List all instances in current region" "$@" && return
+  sk-asdf-install jq -p jq -v 1.6
+  sk-pack-install -b aws -p awscli
+  aws ec2 describe-instances | jq -r '.Reservations[].Instances[] | (.Tags[] | select(.Key=="Name").Value) + "\t" + .InstanceId' | sort
 }

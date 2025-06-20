@@ -112,7 +112,7 @@ sk-git-switch-recent(){
   TMP_FILE=/tmp/selected-git-branch
 
   eval `resize`
-  sk-pack-install dialog -p dialog
+  sk-pack-install -b dialog -p dialog
   dialog --title "Recent Git Branches" --menu "Choose a branch" $LINES $COLUMNS $(( $LINES - 8 )) $(git for-each-ref --sort=-committerdate refs/heads/ --format='%(refname:short) %(committerdate:short)') 2> $TMP_FILE
 
   if [[ "$?" -eq 0 ]];then

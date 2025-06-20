@@ -1,6 +1,6 @@
 sk-apt-rmadison(){
   sk_help "$FUNCNAME: package. Search multiple distro versions for a package" "$@" && return
-  sk-pack-install rmadison -p devscripts
+  sk-pack-install -b rmadison -p devscripts
   rmadison $@
 }
 

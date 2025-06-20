@@ -129,7 +129,7 @@ sk-asdf-python-venv-install(){
       local package=$(echo $line | awk '{print $1}')
       local file_to_check=$(echo $line | awk '{print $2}')
 
-      sk-pack-install $package -p $package -f $file_to_check
+      sk-pack-install -b $package -p $package -f $file_to_check
 
     # skip comments and blank lines
     done < <(cat $build_requirements_file | grep -v '#' | grep -ve '^$' )

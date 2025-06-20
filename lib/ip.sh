@@ -34,7 +34,7 @@ sk-ip-to-asn(){
 sk-ip-to-asn-bulk(){
   sk_help "$FUNCNAME: <file_with_list_of_ips> <output_file>. Lookup as number for a list of ips." "$@" && return
   local ip_list_file=$1 tmp_file="/tmp/$FUNCNAME.$$" output_file=${2:-asn_bulk.out}
-  sk-pack-install nc.traditional -p netcat-traditional
+  sk-pack-install -b nc.traditional -p netcat-traditional
   echo "begin" > $tmp_file
   echo "verbose" >> $tmp_file
   cat $ip_list_file >> $tmp_file
@@ -60,7 +60,7 @@ sk-ip-sort(){
 
 sk-ip-range-to-cidr(){
   local start_ip=$1 end_ip=$2
-  sk-pack-install netaddr -p python-netaddr
+  sk-pack-install -b netaddr -p python-netaddr
   local py_script="
 import sys
 from netaddr import *

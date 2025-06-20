@@ -71,7 +71,7 @@ sk-jinjafier() {
 }
 
 sk-dos2unix(){
-  sk-pack-install dos2unix -p dos2unix
+  sk-pack-install -b dos2unix -p dos2unix
   dos2unix $@
 }
 
@@ -137,7 +137,7 @@ sk-ntp-fix(){
 }
 
 sk-rg(){
-  sk-pack-install rg -p ripgrep
+  sk-pack-install -b rg -p ripgrep
   rg $@
 }
 
@@ -151,7 +151,7 @@ sk-sys-cores(){
 
 sk-awk(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gawk -p gawk
+    sk-pack-install -b gawk -p gawk
     gawk $@
   else
     awk $@
@@ -161,7 +161,7 @@ sk-awk(){
 
 sk-grep(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install ggrep -p grep
+    sk-pack-install -b ggrep -p grep
     ggrep $@
   else
     grep $@
@@ -170,46 +170,46 @@ sk-grep(){
 
 sk-datediff-setup(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install datediff -p dateutils
+    sk-pack-install -b datediff -p dateutils
   else
-    sk-pack-install dateutils.ddiff -p dateutils
+    sk-pack-install -b dateutils.ddiff -p dateutils
   fi
 }
 
 # needs to run as sudo
 sk-tcptraceroute-port(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install tcptraceroute
+    sk-pack-install -b tcptraceroute
     sudo tcptraceroute $@
   else
-    sk-pack-install traceroute
+    sk-pack-install -b traceroute
     sudo traceroute -T $@
   fi
 }
 
 sk-tcptraceroute(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install tcptraceroute
+    sk-pack-install -b tcptraceroute
     tcptraceroute $@
   else
-    sk-pack-install traceroute
+    sk-pack-install -b traceroute
     traceroute -T $@
   fi
 }
 
 sk-traceroute(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gtraceroute -p inetutils
+    sk-pack-install -b gtraceroute -p inetutils
     gtraceroute $@
   else
-    sk-pack-install traceroute
+    sk-pack-install -b traceroute
     traceroute $@
   fi
 }
 
 sk-sed(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gsed -p gnu-sed
+    sk-pack-install -b gsed -p gnu-sed
     gsed $@
   else
     sed $@
@@ -218,7 +218,7 @@ sk-sed(){
 
 sk-readlink-f(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install greadlink -p coreutils
+    sk-pack-install -b greadlink -p coreutils
     greadlink -f $@
   else
     readlink -f $@
@@ -227,7 +227,7 @@ sk-readlink-f(){
 
 sk-readlink-e(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install greadlink -p coreutils
+    sk-pack-install -b greadlink -p coreutils
     greadlink -e $@
   else
     readlink -e $@
@@ -236,7 +236,7 @@ sk-readlink-e(){
 
 sk-realpath(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install grealpath -p coreutils
+    sk-pack-install -b grealpath -p coreutils
     grealpath $@
   else
     realpath $@
@@ -246,7 +246,7 @@ sk-realpath(){
 # bring macos into compat with linux
 sk-date(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gdate -p coreutils
+    sk-pack-install -b gdate -p coreutils
     gdate $@
   else
     date $@
@@ -255,7 +255,7 @@ sk-date(){
 
 sk-find(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gfind -p findutils
+    sk-pack-install -b gfind -p findutils
     gfind "$@"
   else
     find "$@"
@@ -264,7 +264,7 @@ sk-find(){
 
 sk-head(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install ghead -p coreutils
+    sk-pack-install -b ghead -p coreutils
     ghead $@
   else
     head $@
@@ -273,7 +273,7 @@ sk-head(){
 
 sk-gawk(){
  if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gawk -p gawk
+    sk-pack-install -b gawk -p gawk
     gawk $@
   else
     awk $@
@@ -282,7 +282,7 @@ sk-gawk(){
 
 sk-tar(){
   if [[ "$PLATFORM" == 'Darwin' ]];then
-    sk-pack-install gtar -p coreutils
+    sk-pack-install -b gtar -p coreutils
     gtar $@
   else
     tar $@
@@ -374,7 +374,7 @@ sk-sys-strace-top-pid(){
 
 sk-sys-linkchecker(){
   sk_help_noarg "Usage: $FUNCNAME <url> -o csv. Run linkchecker on a site to test performance." "$@" && return
-  sk-pack-install linkchecker
+  sk-pack-install -b linkchecker
   echo_log_run_logoutput linkchecker $@
 }
 
@@ -397,7 +397,7 @@ sk-sys-console-no-monitor-power-off(){
 }
 
 sk-sys-swap-smem() {
-  sk-pack-install smem
+  sk-pack-install -b smem
   echo_log_run_logoutput sudo smem  --totals --percent -k --sort=swap
 }
 
@@ -414,7 +414,7 @@ sk-sys-int-remove(){
 }
 
 sk-sys-purge-old-kernels() {
-  sk-pack-install purge-old-kernels -p bikeshed
+  sk-pack-install -b purge-old-kernels -p bikeshed
   sudo purge-old-kernels --keep 3 -qy
 }
 
