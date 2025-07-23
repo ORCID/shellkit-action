@@ -7,6 +7,11 @@ alias pc="pre-commit"
 alias pci="pre-commit install"
 alias pca="sk-pre-commit-all"
 
+sk-host-to-fqdn(){
+  local host="${1:-localhost}"
+  host "$host" | awk '/has address/ {print $1}'
+}
+
 sk-group-user-uid-highest(){
   group_name="${1:-wibble}"
 

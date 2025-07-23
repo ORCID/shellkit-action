@@ -8,7 +8,7 @@ _sk_logger_common(){
   log_name="${LOG_NAME:-"${NAME}.log"}"
 
   if [[ $EUID -ne 0 ]];then
-    log_dir_default=~/log
+    log_dir_default="${HOME}/log"
   else
     log_dir_default=/var/log/shellkit
   fi
@@ -18,7 +18,10 @@ _sk_logger_common(){
   export LOG_DIR=$log_dir
 
   if [[ ! -d "$log_dir" ]];then
-    sk-dir-make $log_dir
+    if ! sk-dir-make $log_dir;then
+      log_dir=/tmp
+      export LOG_DIR=$log_dir
+    fi
     # dont use logrotate if we have a date based log_dir
     year=$(date +"%Y")
     if ! grep -q $year <<< $(echo $log_dir);then

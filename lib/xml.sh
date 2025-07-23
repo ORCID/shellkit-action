@@ -32,7 +32,7 @@ END {
 }
 
 sk-xml-pretty(){
-  sk-pack-install -b xmllint -p libxml2-utils
+  sk-pack-install -b xmllint --keg_force -p libxml2-utils --mac_package libxml2
   xmllint --format "$@"
 }
 

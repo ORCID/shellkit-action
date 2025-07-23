@@ -26,10 +26,18 @@ sk-logrotate(){
 
   sk-pack-install -b logrotate --post_install 'brew services start logrotate'
 
-  if [[ -d /usr/local/etc/logrotate.d ]];then
-    logrotate_config_file=/usr/local/etc/logrotate.d/${config_name}
-    export LOGROTATE_CONFIG_FILE=$logrotate_config_file
-    logrotate_sudo=0
+  if [[ "$PLATFORM" = 'Darwin' ]];then
+
+    if [[ -d /opt/homebrew/etc/logrotate.d ]];then
+      logrotate_config_file=/opt/homebrew/etc/logrotate.d/${config_name}
+      export LOGROTATE_CONFIG_FILE=$logrotate_config_file
+      logrotate_sudo=0
+    elif [[ -d /usr/local/etc/logrotate.d ]];then
+      logrotate_config_file=/usr/local/etc/logrotate.d/${config_name}
+      export LOGROTATE_CONFIG_FILE=$logrotate_config_file
+      logrotate_sudo=0
+    fi
+
   else
     logrotate_config_file=/etc/logrotate.d/${config_name}
     export LOGROTATE_CONFIG_FILE=$logrotate_config_file

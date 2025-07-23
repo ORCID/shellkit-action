@@ -428,6 +428,15 @@ sk-github(){
   _sk-github_curl https://api.github.com
 }
 
+sk-github-release-list-latest(){
+  local owner_repo="${1:-sigoden/upt}"
+  local output=''
+  sk-git-creds
+  echo "https://api.github.com/repos/$owner_repo/releases/latest"
+  output=`_sk-github_curl  https://api.github.com/repos/$owner_repo/releases/latest`
+  echo $output | jq -r '.'
+}
+
 sk-github-org-list-watchers(){
   local reponame=$1
   local output=''
