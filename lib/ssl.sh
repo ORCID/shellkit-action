@@ -1,3 +1,9 @@
+sk-ssl-cert-gen(){
+  sk_help_noarg "Usage: $FUNCNAME <subject> <days> <format>. Gen self signed certificate" "$@" && return
+  local subject=${1:-"/CN=`hostname`"} days=${2:-3650} key_format=${3:-"rsa:3072"}
+  openssl req -x509 -nodes -newkey "${key_format}" -keyout "/tmp/cert.key" -out "/tmp/cert.pem" -days $days -subj "${subject}"
+}
+
 sk-ssl-pem-to-raw(){
   sk_help_noarg "Usage: $FUNCNAME <pem cert file>. Strip raw cert from a pem file and output it" "$@" && return
   local certfile=${1:-wibble.pem}
