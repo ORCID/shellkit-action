@@ -778,8 +778,7 @@ sk-git-pull(){
 
   _sk-git-keygen -r $repo -g $git_dir
 
-  git -C $git_dir pull --no-edit || true
-
+  git -C $git_dir pull --no-edit --no-rebase
 }
 
 sk-git-clone-checkout-patch(){

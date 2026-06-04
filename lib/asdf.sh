@@ -227,6 +227,7 @@ sk-asdf-install(){
         -u | --plugin)  if plugin and package are different
         -ug | --plugin_git_url)  https url to github asdf plugin
         -s | --silent ) enable silent mode so nothing is output during the install
+        -av | --any-version ) skip version checks when any version will do
 
     Example:
 
@@ -234,7 +235,7 @@ sk-asdf-install(){
     Options:
     "  "$@" && return 1
 
-  local ppa=0 package_type='' repo='' repoform='' package=$binary version=latest dir='unset' file='unset' post_install='' plugin_git_url='' plugin='' silent=0
+  local ppa=0 package_type='' repo='' repoform='' package=$binary version=latest dir='unset' file='unset' post_install='' plugin_git_url='' plugin='' silent=0 skip_version_check=0 needs_install=1
 
   while :
   do
@@ -247,6 +248,7 @@ sk-asdf-install(){
         -d | --dir )  dir=$2; shift 2 ;;
         -f | --file )  file=$2; shift 2 ;;
         -s | --silent )  silent=1; shift  ;;
+        --any-version )  skip_version_check=1; shift ;;
         --verbose )   VERBOSE=$((VERBOSE+1)); shift ;;
         --) shift ; break ;;
         -*) echo "$FUNCNAME WARN: Unknown option (ignored): $1" >&2 ; shift ;;
@@ -254,8 +256,12 @@ sk-asdf-install(){
     esac
   done
 
+  if [[ "$skip_version_check" -eq 1 ]] && command -v "$binary" >/dev/null 2>&1; then
+    return 0
+  fi
+
   # Nasty hack to install plugins as well
-  if ! grep -q $package <<< $(asdf plugin list 2>/dev/null);then
+  if ! grep -q "$package" <<< $(asdf plugin list 2>/dev/null);then
     if [[ "$silent" -eq 1 ]]; then
       if sk-sys-is-root-no-output;then
         # FIXME: find out why we need sudo
@@ -280,11 +286,25 @@ sk-asdf-install(){
   fi
 
   if [[ "$version" = 'latest' ]];then
-    version=$(asdf latest $package)
+    if ! version=$(asdf latest $package 2>/dev/null); then
+      version=$(asdf list $package 2>/dev/null | tr -d '* ' | tail -n1) || true
+
+      if [[ -z "$version" ]]; then
+        echo "WARN: sk-asdf-install could not determine a version for $package" >&2
+        return 1
+      fi
+    fi
   fi
 
-  # install a package if it does not exist ( and handle the error) , or if it is the wrong version
-  if ! grep -q $version <<< $(asdf current $package 2>/dev/null || true);then
+  if [[ "$skip_version_check" -eq 0 ]]; then
+    if grep -q $version <<< $(asdf current $package 2>/dev/null || true);then
+      needs_install=0
+    fi
+  fi
+
+  if [[ "$needs_install" -eq 0 ]]; then
+    return 0
+  fi
 
     if [[ "$silent" -eq 1 ]]; then
       asdf install $package $version >/dev/null 2>&1
@@ -296,8 +316,6 @@ sk-asdf-install(){
       # set the version that will be globally used by the user running asdf in ~/.tool-versions
       asdf global $package $version
     fi
-
-  fi
 
 }
 

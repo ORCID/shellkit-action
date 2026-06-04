@@ -22,6 +22,17 @@ sk-file-no-comments-no-blank(){
   grep -v "^#\|^$" $filename
 }
 
+sk-file-larger-than-mb() {
+  sk_help "Usage: $FUNCNAME <size_in_MB> <dir1> [dir2 ...]. Find files larger than x MB in specified directories." "$@" && return 1
+  local size_mb=${1:-10}
+  shift
+  local dirs=("$@")
+  if [[ ${#dirs[@]} -eq 0 ]]; then
+    dirs=(".")
+  fi
+  find "${dirs[@]}" -type f -size +"${size_mb}M" -exec ls -lh {} \; | awk '{print $9, $5}'
+}
+
 sk-file-older-than(){
   local file=${1:-/var/tmp/} days=${2:-1}
   sk_help "Usage: $FUNCNAME <file> <days>" "$@" && return 1

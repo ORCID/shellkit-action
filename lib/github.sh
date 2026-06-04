@@ -7,7 +7,7 @@ alias al=sk-github-actionlint
 alias ghal=sk-github-actionlint
 
 github_poke_slack_channel='tech-ops'
-github_version=2.54.0
+github_version=2.76.2
 
 
 sk-github-actionlint(){
@@ -352,7 +352,7 @@ alias ghw=sk-github-run-workflow-with-logs
 
 
 _sk-github-tf-parse-apply(){
-  cat "$tf_apply_file" | grep 'Apply Plan' | cut -d' ' -f7-
+  grep -E 'Apply complete!|Error:|no changes|Resources:' "$tf_apply_file" | sed 's/.*Z //' | sed 's/\[0m//g; s/\[1m//g; s/\[32m//g' | sort -u
 }
 
 _sk-github-tf-parse-plan(){
@@ -585,6 +585,13 @@ sk-github-create-repo(){
 
   gh repo create $namespace/$repo $visibility_arg
 
+}
+
+sk-github-open(){
+  sk_help "$FUNCNAME. Open the current repo in Chrome. Opens the PR if the current branch has one, otherwise the repo page." "$@" && return
+  if ! gh pr view --web 2>/dev/null; then
+    gh browse
+  fi
 }
 
 sk-github-dependabot-alerts(){

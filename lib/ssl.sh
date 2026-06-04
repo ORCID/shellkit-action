@@ -15,10 +15,32 @@ sk-ssl-sig() {
   echo_log_run_logoutput openssl x509 -in ${1}* -fingerprint -noout
 }
 
+sk-ssl-ca-list-java(){
+  sk_help "Usage: $FUNCNAME <optional service for java_home> <optional_cacert_file> List all the subject names of the system wide ca store" "$@" && return
+  local service=${1:-wibble}
+  local cacerts_file=${2:-unset}
+
+  sk-java-home -s "$service"
+  if [[ "$cacerts_file" != 'unset' ]];then
+    CACERTS_FILE=$cacerts_file
+  else
+    CACERTS_FILE="$JAVA_HOME/lib/security/cacerts"
+  fi
+  echo "keytool -list -v -keystore "$CACERTS_FILE" -storepass changeit"
+  keytool -list -v -keystore "$CACERTS_FILE" -storepass changeit
+}
+
 sk-ssl-ca-list(){
   sk_help "Usage: $FUNCNAME </etc/ssl/certs/ca-certificates.crt> List all the subject names of the system wide ca store" "$@" && return
+  if [[ "$PLATFORM" = Darwin ]];then
+    default_cacerts_file=/etc/ssl/cert.pem
+  else
+    default_cacerts_file=/etc/ssl/certs/ca-certificates.crt
+  fi
+
+  local cacerts_file="${1:-$default_cacerts_file}"
   awk -v cmd='openssl x509 -noout -subject' '
-    /BEGIN/{close(cmd)};{print | cmd}' < /etc/ssl/certs/ca-certificates.crt
+    /BEGIN/{close(cmd)};{print | cmd}' < $cacerts_file
 }
 
 sk-ssl-text() {

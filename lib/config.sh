@@ -10,7 +10,7 @@ sk-config-read(){
 
       ENV variables
       Config file(s) first one found. based on:-
-      1: ./
+      1: ./ including .<config_filename>
       2: home dir including .<config_filename>
       3: /etc/
       4: /etc/config_file_no_extension_or_dot/
@@ -38,7 +38,7 @@ sk-config-read(){
 
   undotted_file="${config_file#.}"
   config_base="${undotted_file%.*}"
-  config_list="./$config_file ~/.$config_file ~/$config_file /etc/$config_file /etc/$config_base/$config_file"
+  config_list="./$config_file ./.$config_file ~/.$config_file ~/$config_file /etc/$config_file /etc/$config_base/$config_file"
 
   if config_found=$(_sk-config-selector $config_list);then
 

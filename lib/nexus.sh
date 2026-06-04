@@ -318,12 +318,10 @@ sk-nexus-uploadfile(){
 
     if [[ "$repository" == 'private-release' ]];then
       apt_distro=$(sk-deb-distribution $upload_file)
-      if [[ "$Architecture" == 'all' ]];then
-        repository="private_apt_all"
-      else
-        repository="private_apt_${apt_distro}"
-      fi
-
+      # arch:all is CPU-independent but still belongs to a release, so route it
+      # to the per-distro repo like everything else (its per-arch indices
+      # include arch:all packages). The old shared private_apt_all is retired.
+      repository="private_apt_${apt_distro}"
     fi
 
     echo_log curl --fail -u $NEXUS_USER:xxxx -X POST -H "Content-Type: multipart/form-data" --data-binary "@$upload_file" "$NEXUS_URL/repository/$repository/"

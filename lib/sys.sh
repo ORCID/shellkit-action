@@ -7,6 +7,13 @@ alias pc="pre-commit"
 alias pci="pre-commit install"
 alias pca="sk-pre-commit-all"
 
+# FIXME: migrate to asdf
+sk-goreplay(){
+  sk_help_noarg "$FUNCNAME: run and install goreplay tool. Example args --input-file solr_09_30_outage.log --output-http http://localhost:8983 " "$@" && return
+  sk-pack-install -b ror -r https://github.com/buger/goreplay/releases/download/1.3.3/gor_1.3.3_amd64.deb -o deb
+  gor $@
+}
+
 sk-host-to-fqdn(){
   local host="${1:-localhost}"
   host "$host" | awk '/has address/ {print $1}'

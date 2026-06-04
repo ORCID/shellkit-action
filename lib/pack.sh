@@ -106,12 +106,15 @@ sk-pack-install() {
     gem)
       $sudo_cmd gem install $package $version_cmd
     ;;
+    deb)
+      wget $repo
+      $sudo_cmd dpkg -i $(basename $repo)
+    ;;
     npm)
       # FIXME: allow ver to be configurable
       sk-asdf-install npm -p nodejs -v 18.7.0
       npm install --prefix ~ $package@$version
     ;;
-
     run)
       curl -s $repo | sudo bash
     ;;

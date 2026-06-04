@@ -14,6 +14,14 @@ _sk_aws_host(){
   fi
 }
 
+sk-aws-sso(){
+  if [ -z "$1" ]; then
+    echo "Please provide a profile name. Usage: sso profile_name"
+  else
+    aws sso login --profile "$1" && export AWS_PROFILE="$1"
+  fi
+}
+
 sk-aws-rds-failover(){
   sk_help "$FUNCNAME: <db instance> <region> <profile>" "$@" && return
   region=${2:-'eu-west-1'}
@@ -118,4 +126,109 @@ sk-aws-list-instances(){
   sk-asdf-install jq -p jq -v 1.6
   sk-pack-install -b aws -p awscli
   aws ec2 describe-instances | jq -r '.Reservations[].Instances[] | (.Tags[] | select(.Key=="Name").Value) + "\t" + .InstanceId' | sort
+}
+
+sk-leapp(){
+  current_dir=$(pwd)
+  case $current_dir in
+    *prod*) profile="orcid-prod" ;;
+    *int*) profile="orcid-int" ;;
+    *stage*) profile="orcid-stage" ;;
+    *shared*) profile="orcid-shared" ;;
+    *sbox*) profile="orcid-sbox" ;;
+    *qa*) profile="orcid-qa" ;;
+    *) echo "undetected env in current dir"; return ;;
+  esac
+  echo profile "$profile"
+  sk-aws-sso-leapp $profile
+}
+
+sk-aws-sso-leapp(){
+  local profile="${1:-orcid-int}"
+
+  # Check if SSO session is still valid by trying to export credentials
+  local creds=$(aws configure export-credentials --profile "$profile" --format process 2>/dev/null)
+
+  # If credentials export failed, we need to login
+  if [ $? -ne 0 ] || [ -z "$creds" ]; then
+    echo "SSO session expired or invalid, logging in..."
+    aws sso login --sso-session orcid 2>&1 | grep -v "Attempting to automatically open\|If the browser does not open\|https://\|Then enter the code\|Successfully logged into"
+
+    # Try exporting credentials again after login
+    creds=$(aws configure export-credentials --profile "$profile" --format process 2>/dev/null)
+
+    if [ $? -ne 0 ] || [ -z "$creds" ]; then
+      echo "✗ Failed to export credentials after login"
+      return 1
+    fi
+  fi
+
+  # Parse the credentials (process format is JSON)
+  local access_key=$(echo "$creds" | jq -r '.AccessKeyId')
+  local secret_key=$(echo "$creds" | jq -r '.SecretAccessKey')
+  local session_token=$(echo "$creds" | jq -r '.SessionToken')
+  local expiration=$(echo "$creds" | jq -r '.Expiration')
+
+  # Write to ~/.aws/credentials as [default] profile (Leapp-style)
+  local creds_file=~/.aws/credentials
+
+  # Create ~/.aws directory if it doesn't exist
+  mkdir -p ~/.aws
+
+  # Backup existing credentials
+  if [ -f "$creds_file" ]; then
+    cp "$creds_file" "${creds_file}.bak"
+  fi
+
+  # Remove existing [default] section if it exists
+  if grep -q "\[default\]" "$creds_file" 2>/dev/null; then
+    # Remove the [default] section and everything until the next section or EOF
+    awk 'BEGIN {skip=0} /^\[default\]/ {skip=1; next} /^\[.*\]/ {skip=0} !skip' "$creds_file" > "${creds_file}.tmp"
+    mv "${creds_file}.tmp" "$creds_file"
+  fi
+
+  # Prepend new default credentials at the top of the file
+  {
+    echo "[default]"
+    echo "aws_access_key_id = ${access_key}"
+    echo "aws_secret_access_key = ${secret_key}"
+    echo "aws_session_token = ${session_token}"
+    echo "# Profile: ${profile}"
+    echo "# Expires: ${expiration}"
+    echo ""
+    cat "$creds_file" 2>/dev/null
+  } > "${creds_file}.new"
+
+  mv "${creds_file}.new" "$creds_file"
+  chmod 600 "$creds_file"
+
+  # Clear any profile override
+  unset AWS_PROFILE
+
+  echo "✓ Switched to AWS profile: $profile"
+  echo "✓ Credentials written to ~/.aws/credentials as [default]"
+  echo "✓ Credentials expire: $expiration"
+}
+
+# Simpler environment-only version
+sk-aws-sso-env(){
+  local profile="${1:-orcid-int}"
+
+  aws sso login --profile "$profile" 2>&1 | grep -v "Attempting to automatically open\|If the browser does not open\|https://\|Then enter the code\|Successfully logged into" || return 1
+
+  eval $(aws configure export-credentials --profile "$profile" --format env 2>/dev/null)
+
+  # Clear AWS_PROFILE so it uses the exported credentials
+  unset AWS_PROFILE
+
+  if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+    local expiration=$(aws configure export-credentials --profile "$profile" --format process 2>/dev/null | jq -r '.Expiration')
+    echo "✓ Logged into AWS SSO"
+    echo "✓ Credentials exported to environment"
+    echo "✓ Source profile: $profile"
+    echo "✓ Valid until: $expiration"
+  else
+    echo "✗ Failed to export credentials"
+    return 1
+  fi
 }
